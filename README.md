@@ -123,7 +123,7 @@ The script includes logic to automatically determine several parameters, especia
   - **Version**: 2025.05.15
   - **License**: MIT License
 
-Copyright (c) 2025 Anonymous.
+Copyright (c) 2025 Kingdalfgoodman@foxmail.com.
 
 This project is licensed under the MIT License.
 
