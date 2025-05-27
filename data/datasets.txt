@@ -1,0 +1,24 @@
+
+
+
+alpaca: github.com/gururise/AlpacaDataCleaned
+
+
+
+gsm8k:
+    """
+        gsm8k_train = load_dataset('gsm8k', 'main', split='train')
+        gsm8k_test = load_dataset('gsm8k', 'main', split='test')
+    """
+
+
+
+sql:    github.com/IST-DASLab/HALO/tree/main/data/sql
+
+
+
+viggo:
+    """
+        viggo_train = load_dataset('GEM/viggo', split='train', trust_remote_code=True)
+        viggo_test = load_dataset('GEM/viggo', split='test', trust_remote_code=True)
+    """
