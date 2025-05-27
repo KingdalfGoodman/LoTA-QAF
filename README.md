@@ -1,5 +1,7 @@
 # LoTA-QAF: Lossless Ternary Adaptation for Quantization-Aware Fine-Tuning
 
+arxiv.org/abs/2505.18724
+
 This repository contains the code for LoTA-QAF, a novel fine-tuning method for quantized Large Language Models (LLMs). It enables the lossless merging of ternary adaptation weights and the adjustment of all quantized weights.
 LoTA-QAF combines:
 * Custom-designed Ternary Adaptation (TA) that aligns ternary weights with the quantization grid to adjust quantized weights.
