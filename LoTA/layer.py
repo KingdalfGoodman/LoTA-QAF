@@ -233,6 +233,53 @@ class CustomLoraLinear(nn.Module, LoraLayer):
         self.residual = residual
         self.update_layer(adapter_name, r, lora_alpha=lora_alpha, lora_dropout=lora_dropout, init_lora_weights=init_lora_weights,)
 
+    def decode_zero(self, base_layer):
+        if base_layer.bits in [2, 4, 8]:
+            zeros = torch.bitwise_right_shift(
+                torch.unsqueeze(base_layer.qzeros, 2).expand(-1, -1, base_layer.pack_factor),
+                base_layer.wf_unsqueeze_zero
+            ).to(base_layer.dequant_dtype)
+            zeros = torch.bitwise_and(zeros, base_layer.maxq).reshape(base_layer.scales.shape)
+        elif base_layer.bits == 3:
+            zeros = base_layer.qzeros.reshape(base_layer.qzeros.shape[0], base_layer.qzeros.shape[1] // 3, 3, 1).expand(
+                -1, -1, -1, 12
+            )
+            zeros = zeros >> base_layer.wf_unsqueeze_zero
+            zeros[:, :, 0, 10] = (zeros[:, :, 0, 10] & 0x3) | ((zeros[:, :, 1, 0] << 2) & 0x4)
+            zeros[:, :, 1, 11] = (zeros[:, :, 1, 11] & 0x1) | ((zeros[:, :, 2, 0] << 1) & 0x6)
+            zeros = zeros & 0x7
+            zeros = torch.cat(
+                [zeros[:, :, 0, :11], zeros[:, :, 1, 1:12], zeros[:, :, 2, 1:11]],
+                dim=2,
+            ).reshape(base_layer.scales.shape)
+        else:
+            raise ValueError(f"Unsupported bits: {base_layer.bits}")
+        return zeros
+
+    def decode_qweight(self, base_layer):
+        # Code_implementation logic from gptqmodel
+        if base_layer.bits in [2, 4, 8]:
+            weight_int = torch.bitwise_and(
+                torch.bitwise_right_shift(
+                    torch.unsqueeze(base_layer.qweight, 1).expand(-1, base_layer.pack_factor, -1),
+                    base_layer.wf_unsqueeze_neg_one
+                ).to(base_layer.dequant_dtype), 
+                base_layer.maxq
+            )
+            weight_int = weight_int.reshape(base_layer.in_features, base_layer.out_features)
+        elif base_layer.bits == 3:
+            weight = base_layer.qweight.reshape(
+                base_layer.qweight.shape[0] // 3, 3, 1, base_layer.qweight.shape[1]
+            ).expand(-1, -1, 12, -1)
+            weight = (weight >> base_layer.wf_unsqueeze_neg_one) & 0x7
+            weight[:, 0, 10] = (weight[:, 0, 10] & 0x3) | ((weight[:, 1, 0] << 2) & 0x4)
+            weight[:, 1, 11] = (weight[:, 1, 11] & 0x1) | ((weight[:, 2, 0] << 1) & 0x6)
+            weight = weight & 0x7
+            weight = torch.cat([weight[:, 0, :11], weight[:, 1, 1:12], weight[:, 2, 1:11]], dim=1)
+            weight_int = weight.reshape(base_layer.in_features, base_layer.out_features)
+        else:
+            raise ValueError(f"Unsupported bits: {base_layer.bits}")
+        return weight_int
 
     def update_layer(self, adapter_name, r, lora_alpha, 
                      lora_dropout, init_lora_weights, use_rslora=False, use_dora: bool = False, lora_bias: bool = False):
